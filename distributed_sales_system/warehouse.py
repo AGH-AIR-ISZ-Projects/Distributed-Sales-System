@@ -1,6 +1,4 @@
-import json
-from distributed_sales_system import json_path
-
+from distributed_sales_system.product_register import product_register
 
 class Product:
 
@@ -23,9 +21,7 @@ class Warehouse:
         return f"{self.__products}"
 
     def add_product(self, product_name: str, amount: int = 0, limit: int = 10) -> None:
-        with open(json_path) as f:
-            json_content = json.load(f)
-            if product_name not in json_content:
+            if product_name not in product_register:
                 raise AttributeError(
                     "Product doesn't exists (not specified in product register)")
             elif product_name in self.__products.keys():
