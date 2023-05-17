@@ -16,7 +16,7 @@ class UserRegister:
 
     def producer_with_products(self, products_list: List[str]) -> Set[int]:
         """
-        Interface for customers - function used for finding producers that meet customer requirements (in terms of products)
+        Interface for customers - function used for finding producers that meet customer requirements (in terms of products).
 
             Parameters:
                 products_list (list): List containing names of products (str) that customer want to buy.
@@ -34,7 +34,7 @@ class UserRegister:
 
     def add_customer(self, customer_name: str) -> int:
         """
-        Interface for customer - function used for assigning ID and adding new customer to register
+        Interface for customer - function used for assigning ID and adding new customer to register.
 
             Parameters:
                 customer_name (str): Name of customer.
@@ -49,7 +49,7 @@ class UserRegister:
 
     def add_producer(self, producer_name: str, producer_product_list: List[str]) -> int:
         """
-        Interface for producer - function used for assigning ID and adding new customer to register
+        Interface for producer - function used for assigning ID and adding new customer to register.
 
             Parameters:
                 producer_name (str): Name of producer.
@@ -66,27 +66,8 @@ class UserRegister:
 
     def add_producer_product(self, producer_id: int, product: str) -> None:
         """
-        Interface for producer - function used for adding new product into offer
-            Parameters:
-                producer_id (int): Producer ID.
+        Interface for producer - function used for adding new product into offer.
 
-                product (str): Product name .
-
-            Returns:
-                None
-
-            Raises:
-                ValueError - incorrect ID
-        """
-        if self.__check_producer_id(producer_id):
-            current_producer_data = self.__producer_register[producer_id]
-            new_product_list = current_producer_data.product_list
-            new_product_list.append(product)
-            self.__producer_register[producer_id] = current_producer_data._replace(product_list=new_product_list)
-
-    def remove_producer_product(self, producer_id, product) -> None:
-        """
-        Interface for producer - function used for removing product from offer
             Parameters:
                 producer_id (int): Producer ID.
 
@@ -96,7 +77,27 @@ class UserRegister:
                 None
 
             Raises:
-                ValueError - incorrect ID
+                ValueError - incorrect ID.
+        """
+        if self.__check_producer_id(producer_id):
+            current_producer_data = self.__producer_register[producer_id]
+            new_product_list = current_producer_data.product_list
+            new_product_list.append(product)
+            self.__producer_register[producer_id] = current_producer_data._replace(product_list=new_product_list)
+
+    def remove_producer_product(self, producer_id, product) -> None:
+        """
+        Interface for producer - function used for removing product from offer.
+            Parameters:
+                producer_id (int): Producer ID.
+
+                product (str): Product name.
+
+            Returns:
+                None
+
+            Raises:
+                ValueError - incorrect ID.
         """
         if self.__check_producer_id(producer_id):
             current_producer_data = self.__producer_register[producer_id]
@@ -115,7 +116,7 @@ class UserRegister:
                 None
 
             Raises:
-                ValueError - Incorrect ID
+                ValueError - Incorrect ID.
         """
         if user_id not in self.__assigned_ids:
             raise ValueError("Incorrect ID - No such ID in register")
@@ -127,7 +128,7 @@ class UserRegister:
 
     def __check_producer_id(self, producer_id) -> Optional[bool]:
         """
-        Inner function used for checking if producer ID is correct (is in register and isn't assigned to customer)
+        Inner function used for checking if producer ID is correct (is in register and isn't assigned to customer).
 
             Parameters:
                 producer_id (int): Producer ID.
@@ -136,7 +137,7 @@ class UserRegister:
                 True if ID is correct.
 
             Raises:
-                ValueError - Incorrect ID
+                ValueError - Incorrect ID.
         """
         if producer_id in self.__producer_register.keys():
             return True
@@ -151,7 +152,7 @@ class UserRegister:
         Inner function used for generating ID for new users. It assigned the smallest possible ID.
 
             Returns:
-                user_id (int): Generated ID
+                user_id (int): Generated ID.
         """
         if self.__free_ids:
             user_id = min(self.__free_ids)
