@@ -1,5 +1,6 @@
 from collections import namedtuple
 from typing import Set, List, Optional
+from copy import deepcopy
 
 
 ProducerData = namedtuple('ProducerData', ['name', 'product_list'])
@@ -7,13 +8,23 @@ ProducerData = namedtuple('ProducerData', ['name', 'product_list'])
 
 class UserRegister:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.__customer_register = {}
         self.__producer_register = {}
         self.__assigned_ids = set()
         self.__free_ids = set()
 
     def producer_with_products(self, products_list: List[str]) -> Set[int]:
+        """
+        Interface for customers - function used for finding producers that meet customer requirements (in terms of products)
+
+            Parameters:
+                products_list (list): List containing names of products (str) that customer want to buy.
+
+            Returns:
+                possible_producers (set): Set containing id of producers, whose have at least one product from product_list.
+
+        """
         possible_producers = set()
         for product in products_list:
             for producer_id, producer_data in self.__producer_register.items():
@@ -22,16 +33,51 @@ class UserRegister:
         return possible_producers
 
     def add_customer(self, customer_name: str) -> int:
+        """
+        Interface for customer - function used for assigning ID and adding new customer to register
+
+            Parameters:
+                customer_name (str): Name of customer.
+
+            Returns:
+                customer_id (int): ID assigned for new customer.
+
+        """
         customer_id = self.__generate_id__()
         self.__customer_register[customer_id] = customer_name
         return customer_id
 
     def add_producer(self, producer_name: str, producer_product_list: List[str]) -> int:
+        """
+        Interface for producer - function used for assigning ID and adding new customer to register
+
+            Parameters:
+                producer_name (str): Name of producer.
+
+                producer_product_list (list): List containing names (str) of products that producer is selling.
+
+            Returns:
+                customer_id (int): ID assigned for new producer.
+
+        """
         producer_id = self.__generate_id__()
-        self.__producer_register[producer_id] = ProducerData(producer_name, producer_product_list)
+        self.__producer_register[producer_id] = ProducerData(producer_name, deepcopy(producer_product_list))
         return producer_id
 
     def add_producer_product(self, producer_id: int, product: str) -> None:
+        """
+        Interface for producer - function used for adding new product into offer
+            Parameters:
+                producer_id (int): Producer ID.
+
+                product (str): Product name .
+
+            Returns:
+                None
+
+            Raises:
+                ValueError - incorrect ID
+        """
         if self.__check_producer_id(producer_id):
             current_producer_data = self.__producer_register[producer_id]
             new_product_list = current_producer_data.product_list
@@ -39,6 +85,19 @@ class UserRegister:
             self.__producer_register[producer_id] = current_producer_data._replace(product_list=new_product_list)
 
     def remove_producer_product(self, producer_id, product) -> None:
+        """
+        Interface for producer - function used for removing product from offer
+            Parameters:
+                producer_id (int): Producer ID.
+
+                product (str): Product name.
+
+            Returns:
+                None
+
+            Raises:
+                ValueError - incorrect ID
+        """
         if self.__check_producer_id(producer_id):
             current_producer_data = self.__producer_register[producer_id]
             new_product_list = current_producer_data.product_list
@@ -46,6 +105,18 @@ class UserRegister:
             self.__producer_register[producer_id] = current_producer_data._replace(product_list=new_product_list)
 
     def delete_user(self, user_id) -> None:
+        """
+        Interface for users - function used for removing user from register.
+
+            Parameters:
+                user_id (int): User ID.
+
+            Returns:
+                None
+
+            Raises:
+                ValueError - Incorrect ID
+        """
         if user_id not in self.__assigned_ids:
             raise ValueError("Incorrect ID - No such ID in register")
         if user_id in self.__customer_register.keys():
@@ -55,6 +126,18 @@ class UserRegister:
         self.__delete_id(user_id)
 
     def __check_producer_id(self, producer_id) -> Optional[bool]:
+        """
+        Inner function used for checking if producer ID is correct (is in register and isn't assigned to customer)
+
+            Parameters:
+                producer_id (int): Producer ID.
+
+            Returns:
+                True if ID is correct.
+
+            Raises:
+                ValueError - Incorrect ID
+        """
         if producer_id in self.__producer_register.keys():
             return True
         else:
@@ -64,6 +147,12 @@ class UserRegister:
                 raise ValueError("Incorrect ID - No such ID in register")
 
     def __generate_id__(self) -> int:
+        """
+        Inner function used for generating ID for new users. It assigned the smallest possible ID.
+
+            Returns:
+                user_id (int): Generated ID
+        """
         if self.__free_ids:
             user_id = min(self.__free_ids)
             self.__free_ids.remove(user_id)
@@ -75,5 +164,14 @@ class UserRegister:
             return user_id
 
     def __delete_id(self, user_id) -> None:
+        """
+        Inner function used for deleting (freeing) ID.
+
+            Parameters:
+                user_id (int): User ID.
+
+            Returns:
+                None
+        """
         self.__free_ids.add(user_id)
         self.__assigned_ids.remove(user_id)
