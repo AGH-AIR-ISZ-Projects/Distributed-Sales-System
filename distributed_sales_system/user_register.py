@@ -7,6 +7,21 @@ ProducerData = namedtuple('ProducerData', ['name', 'product_list'])
 
 
 class UserRegister:
+    """
+    Class representing global user register.
+
+    Attributes
+    ----------
+    __customer_register (dict):
+        Dictionary mapping customer_id to its name.
+    __producer_register (dict):
+        Dictionary mapping producer_id to its data (namedtuple ProducerData). Producer data contains its name and
+        list of products.
+    __assigned_ids (set):
+        Set of currently assigned IDs. Customers and producers shared IDs.
+    __free_ids (set):
+        Set of IDs that was freed and can be reused.
+    """
 
     def __init__(self) -> None:
         self.__customer_register = {}
