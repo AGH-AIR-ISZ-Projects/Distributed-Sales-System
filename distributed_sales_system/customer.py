@@ -2,9 +2,11 @@ from distributed_sales_system import global_user_register
 from .product_register import product_register
 from typing import List, Set, Dict, Tuple, Union
 from random import sample, randint
+from threading import Thread, Event
+import time
 
 
-class Customer:
+class Customer(Thread):
     """
     Class representing customer.
 
@@ -32,12 +34,21 @@ class Customer:
         Parameters:
             name (str): Name of customer.
         """
+        super().__init__()
         self.name = name
         self.id = global_user_register.add_customer(customer_name=name)
         self.__shopping_list: Dict[str, int] = {}
         self.__producers_data: Dict[int, Dict[str, List[Union[int, float]]]] = {}
         self.__preference_list: List[Tuple[int, float]] = []
-        self.__possible_producers: Set[int] = set()
+        self.__possible_producers: Dict[int, Event] = {}
+
+    def run(self) -> None:
+        if randint(0, 1):
+            self.browsing_producers_offer()
+            time.sleep(1)
+            self.submit_order()
+        time.sleep(10)
+
 
     def browsing_producers_offer(self) -> None:
         """
@@ -52,13 +63,15 @@ class Customer:
         """
         self.__generate_shopping_list()
         self.__get_producers_from_register()
-        for producer_id in self.__possible_producers[:]:
-            producer_data = {"apple": [20, 2.79]}  # informacje od producentów o typie ilości i cenie
+        for producer_id, producer_event in self.__possible_producers.copy():
+            producer_event.set()
+            producer_data = {}
+            producer_event.clear()
             self.__remove_product_with_zero_amount(producer_data)
             if producer_data:
                 self.__producers_data[producer_id] = producer_data
             else:
-                self.__possible_producers.remove(producer_id)
+                del self.__possible_producers[producer_id]
         self.__create_preference_list()
 
     def submit_order(self) -> None:
@@ -97,7 +110,7 @@ class Customer:
             Returns:
                 None
         """
-        for product, info in products_info:
+        for product, info in products_info.items():
             if info[0] == 0:
                 del products_info[product]
 
