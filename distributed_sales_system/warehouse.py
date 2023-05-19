@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 from distributed_sales_system import logging
 
 class WarehouseProduct:
@@ -42,7 +42,7 @@ class Warehouse:
     default_amount = 5
     default_limit = 10
 
-    def __init__(self, products_list: List[str] |  List[Tuple[str, float, int, int, int, int]]) -> None:
+    def __init__(self, products_list: Union[List[str], List[Tuple[str, float, int, int, int, int]]]) -> None:
         # initialize empty dict
         self.products = {}
         if isinstance(products_list[0], str):

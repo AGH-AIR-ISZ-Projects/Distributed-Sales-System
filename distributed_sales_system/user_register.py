@@ -1,9 +1,10 @@
 from collections import namedtuple
-from typing import Set, List, Optional
+from typing import Dict, List, Optional
 from copy import deepcopy
+from threading import Event
 
 
-ProducerData = namedtuple('ProducerData', ['name', 'product_list'])
+ProducerData = namedtuple('ProducerData', ['name', 'product_list', 'event'])
 
 
 class UserRegister:
@@ -29,7 +30,7 @@ class UserRegister:
         self.__assigned_ids = set()
         self.__free_ids = set()
 
-    def producer_with_products(self, products_list: List[str]) -> Set[int]:
+    def producer_with_products(self, products_list: List[str]) -> Dict[int, Event]:
         """
         Interface for customers - function used for finding producers that meet customer requirements (in terms of products).
 
@@ -40,11 +41,11 @@ class UserRegister:
                 possible_producers (set): Set containing id of producers, whose have at least one product from product_list.
 
         """
-        possible_producers = set()
+        possible_producers = dict()
         for product in products_list:
-            for producer_id, producer_data in self.__producer_register.items():
+            for producer_id, producer_data, event in self.__producer_register.items():
                 if product in producer_data.product_list:
-                    possible_producers.add(producer_id)
+                    possible_producers[producer_id] = event
         return possible_producers
 
     def add_customer(self, customer_name: str) -> int:
@@ -62,7 +63,7 @@ class UserRegister:
         self.__customer_register[customer_id] = customer_name
         return customer_id
 
-    def add_producer(self, producer_name: str, producer_product_list: List[str]) -> int:
+    def add_producer(self, producer_name: str, producer_product_list: List[str], producer_event: Event) -> int:
         """
         Interface for producer - function used for assigning ID and adding new customer to register.
 
@@ -71,12 +72,14 @@ class UserRegister:
 
                 producer_product_list (list): List containing names (str) of products that producer is selling.
 
+                producer_event
+
             Returns:
                 customer_id (int): ID assigned for new producer.
 
         """
         producer_id = self.__generate_id__()
-        self.__producer_register[producer_id] = ProducerData(producer_name, deepcopy(producer_product_list))
+        self.__producer_register[producer_id] = ProducerData(producer_name, deepcopy(producer_product_list), producer_event)
         return producer_id
 
     def add_producer_product(self, producer_id: int, product: str) -> None:
