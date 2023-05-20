@@ -1,10 +1,12 @@
 from typing import List, Dict, Union, Optional, Tuple
 from distributed_sales_system.warehouse import Warehouse
-from distributed_sales_system import global_user_register
+from distributed_sales_system import global_user_register, logging
 from distributed_sales_system.product_register import product_register
 from distributed_sales_system.product_generator import Generator
 from threading import Thread, Event
 from queue import Queue
+import time
+
 
 
 class Producer(Thread):
@@ -35,25 +37,29 @@ class Producer(Thread):
         self.products = self.__add_products(products)
         self.warehouse = Warehouse(products)
         self.product_generator = Generator(products)
-        self.event = Event()
-        self.id = global_user_register.add_producer(
-            self.name, self.products.keys(), self.event)
-        self.customer_register = {}
         self.order_queue = Queue()
         self.request_queue = Queue()
+        self.id = global_user_register.add_producer(
+            self.name, list(self.products.keys()), self.request_queue, self.order_queue)
+        self.customer_register = {}
 
     def __repr__(self) -> str:
         return f"{self.products}"
 
     def run(self) -> None:
-        if not self.order_queue.empty():
-            order = self.order_queue.get()
-            order_completed = self.create_order(order)
-            # send back to customer
-        if not self.request_queue.empty():
-            request = self.request_queue.get()
-            products_info = self.display_products(request)
-            # send back to customer
+        for i in range(6_000_000):
+            if not self.order_queue.empty():
+                order = self.order_queue.get()
+                order_completed = self.create_order(order)
+                # send back to customer
+            while not self.request_queue.empty():
+                print(f"Producer {self.id} queue: {list(self.request_queue.queue)}")
+                requested_products, customer_queue = self.request_queue.get()
+                products_info = self.display_products(requested_products)
+                customer_queue.put_nowait(products_info)
+                    # send back to customer
+        print(f"Producer {self.id} is done")
+
 
 
 

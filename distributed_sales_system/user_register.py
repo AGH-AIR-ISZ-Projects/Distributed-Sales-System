@@ -1,10 +1,10 @@
 from collections import namedtuple
 from typing import Dict, List, Optional
 from copy import deepcopy
-from threading import Event
+from queue import Queue
 
 
-ProducerData = namedtuple('ProducerData', ['name', 'product_list', 'event'])
+ProducerData = namedtuple('ProducerData', ['name', 'product_list', 'request_queue', 'order_queue'])
 
 
 class UserRegister:
@@ -30,7 +30,7 @@ class UserRegister:
         self.__assigned_ids = set()
         self.__free_ids = set()
 
-    def producer_with_products(self, products_list: List[str]) -> Dict[int, Event]:
+    def producer_with_products(self, products_list: List[str]) -> Dict[int, List[Queue]]:
         """
         Interface for customers - function used for finding producers that meet customer requirements (in terms of products).
 
@@ -43,27 +43,28 @@ class UserRegister:
         """
         possible_producers = dict()
         for product in products_list:
-            for producer_id, producer_data, event in self.__producer_register.items():
+            for producer_id, producer_data in self.__producer_register.items():
                 if product in producer_data.product_list:
-                    possible_producers[producer_id] = event
+                    possible_producers[producer_id] = [producer_data.request_queue, producer_data.order_queue]
         return possible_producers
 
-    def add_customer(self, customer_name: str) -> int:
+    def add_customer(self, customer_name: str, offer_queue: Queue) -> int:
         """
         Interface for customer - function used for assigning ID and adding new customer to register.
 
             Parameters:
                 customer_name (str): Name of customer.
+                offer_queue (Queue): Queue where producers will list their offers
 
             Returns:
                 customer_id (int): ID assigned for new customer.
 
         """
         customer_id = self.__generate_id__()
-        self.__customer_register[customer_id] = customer_name
+        self.__customer_register[customer_id] = [customer_name, offer_queue]
         return customer_id
 
-    def add_producer(self, producer_name: str, producer_product_list: List[str], producer_event: Event) -> int:
+    def add_producer(self, producer_name: str, producer_product_list: List[str], producer_request_queue: Queue, producer_order_queue: Queue) -> int:
         """
         Interface for producer - function used for assigning ID and adding new customer to register.
 
@@ -79,7 +80,7 @@ class UserRegister:
 
         """
         producer_id = self.__generate_id__()
-        self.__producer_register[producer_id] = ProducerData(producer_name, deepcopy(producer_product_list), producer_event)
+        self.__producer_register[producer_id] = ProducerData(producer_name, deepcopy(producer_product_list), producer_request_queue, producer_order_queue)
         return producer_id
 
     def add_producer_product(self, producer_id: int, product: str) -> None:
