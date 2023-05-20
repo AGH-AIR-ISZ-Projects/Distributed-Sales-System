@@ -1,9 +1,10 @@
-from distributed_sales_system import global_user_register
+from distributed_sales_system import global_user_register, logging
 from .product_register import product_register
 from typing import List, Set, Dict, Tuple, Union
 from random import sample, randint
 from threading import Thread, Event
 import time
+from queue import Queue
 
 
 class Customer(Thread):
@@ -36,18 +37,21 @@ class Customer(Thread):
         """
         super().__init__()
         self.name = name
-        self.id = global_user_register.add_customer(customer_name=name)
+        self.offer_queue = Queue()
+        self.id = global_user_register.add_customer(name, self.offer_queue)
         self.__shopping_list: Dict[str, int] = {}
         self.__producers_data: Dict[int, Dict[str, List[Union[int, float]]]] = {}
         self.__preference_list: List[Tuple[int, float]] = []
-        self.__possible_producers: Dict[int, Event] = {}
+        self.__possible_producers: Dict[int, List] = {}
 
     def run(self) -> None:
         if randint(0, 1):
             self.browsing_producers_offer()
             time.sleep(1)
-            self.submit_order()
-        time.sleep(10)
+            # self.submit_order()
+        else:
+            print(f"Customer {self.id} nothing to buy")
+        print(f"Customer {self.id} is done")
 
 
     def browsing_producers_offer(self) -> None:
@@ -63,10 +67,12 @@ class Customer(Thread):
         """
         self.__generate_shopping_list()
         self.__get_producers_from_register()
-        for producer_id, producer_event in self.__possible_producers.copy():
-            producer_event.set()
-            producer_data = {}
-            producer_event.clear()
+        for producer_id, producer_queues in self.__possible_producers.copy().items():
+            producer_queues[0].put_nowait((self.__shopping_list, self.offer_queue))
+            print(f"Customer {self.id} has sent request to {producer_id}")
+            producer_data = self.offer_queue.get()
+            print(f"Customer {self.id} received data from producer {producer_data}")
+            print(f"Customer {self.id} queue {list(self.offer_queue.queue)}")
             self.__remove_product_with_zero_amount(producer_data)
             if producer_data:
                 self.__producers_data[producer_id] = producer_data
