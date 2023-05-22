@@ -40,7 +40,7 @@ class Warehouse:
             Default limit of given product in warehouse (used if limit not passed in constructor).
     '''
     default_amount = 5
-    default_limit = 10
+    default_limit = 100
 
     def __init__(self, products_list: Union[List[str], List[Tuple[str, float, int, int, int, int]]]) -> None:
         # initialize empty dict

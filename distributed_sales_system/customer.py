@@ -38,6 +38,7 @@ class Customer(Thread):
         super().__init__()
         self.name = name
         self.offer_queue = Queue()
+        self.order_status = Queue(maxsize=1)
         self.id = global_user_register.add_customer(name, self.offer_queue)
         self.__shopping_list: Dict[str, int] = {}
         self.__producers_data: Dict[int, Dict[str, List[Union[int, float]]]] = {}
@@ -45,13 +46,16 @@ class Customer(Thread):
         self.__possible_producers: Dict[int, List] = {}
 
     def run(self) -> None:
-        if randint(0, 1):
-            self.browsing_producers_offer()
-            time.sleep(1)
-            # self.submit_order()
-        else:
-            print(f"Customer {self.id} nothing to buy")
-        print(f"Customer {self.id} is done")
+        for x in range(2):
+            if randint(0, 1):
+                self.browsing_producers_offer()
+                time.sleep(1)
+                self.submit_order()
+                time.sleep(1)
+            else:
+                pass
+                print(f"Customer {self.name} nothing to buy")
+            print(f"Customer {self.name} is done")
 
 
     def browsing_producers_offer(self) -> None:
@@ -69,10 +73,10 @@ class Customer(Thread):
         self.__get_producers_from_register()
         for producer_id, producer_queues in self.__possible_producers.copy().items():
             producer_queues[0].put_nowait((self.__shopping_list, self.offer_queue))
-            print(f"Customer {self.id} has sent request to {producer_id}")
+            print(f"Customer {self.name} has sent request to {producer_id}")
             producer_data = self.offer_queue.get()
-            print(f"Customer {self.id} received data from producer {producer_data}")
-            print(f"Customer {self.id} queue {list(self.offer_queue.queue)}")
+            print(f"Customer {self.name} received data from producer {producer_data}")
+            print(f"Customer {self.name} queue {list(self.offer_queue.queue)}")
             self.__remove_product_with_zero_amount(producer_data)
             if producer_data:
                 self.__producers_data[producer_id] = producer_data
@@ -91,16 +95,21 @@ class Customer(Thread):
             Returns:
                 None
         """
-        while self.__shopping_list and self.__producers_data:
+        while self.__shopping_list and self.__possible_producers:
             current_producer_id = self.__preference_list.pop(0)[0]
             current_order = self.__prepare_order_for_producer(current_producer_id)
-            is_order_completed = True  # wysłanie do producenta i informacja zwrotna czy zrealizowano zamówienie
-            if is_order_completed:
-                for bought_product in current_order:
-                    self.__shopping_list[bought_product] -= current_order[bought_product]
-                    if self.__shopping_list[bought_product] == 0:
-                        del self.__shopping_list[bought_product]
-            self.__possible_producers.remove(current_producer_id)
+            if current_order:
+                self.__possible_producers[current_producer_id][1].put_nowait((current_order, self.order_status)) # wyślij zamówienie
+                is_order_completed = self.order_status.get() # odbierz odpowiedź
+                print(f"{self.name} order is: {is_order_completed}")
+                if is_order_completed:
+                    for bought_product in current_order:
+                        self.__shopping_list[bought_product] -= current_order[bought_product]
+                        if self.__shopping_list[bought_product] == 0:
+                            del self.__shopping_list[bought_product]
+            del self.__possible_producers[current_producer_id]
+            if not self.__shopping_list:
+                break
             self.__create_preference_list()
         self.__remove_shopping_data_finished_order()
 
@@ -116,7 +125,7 @@ class Customer(Thread):
             Returns:
                 None
         """
-        for product, info in products_info.items():
+        for product, info in products_info.copy().items():
             if info[0] == 0:
                 del products_info[product]
 
@@ -133,9 +142,10 @@ class Customer(Thread):
         order = {}
         producer_info = self.__producers_data[producer_id]
         for available_product in producer_info:
-            product_amount = producer_info[available_product][0]
-            product_need = self.__shopping_list[available_product]
-            order[available_product] = product_need if product_amount >= product_need else product_amount
+            if available_product in self.__shopping_list.keys():
+                product_amount = producer_info[available_product][0]
+                product_need = self.__shopping_list[available_product]
+                order[available_product] = product_need if product_amount >= product_need else product_amount
         return order
 
     def __generate_shopping_list(self, max_products_in_list=4, max_product_amount=10) -> None:
@@ -178,17 +188,21 @@ class Customer(Thread):
             Returns:
                 cost (float): Value of cost function.
         """
-        products_number_coef = len(products_data)/len(self.__shopping_list)
+        products_number_coef = len(set(products_data.keys())&set(self.__shopping_list.keys()))/len(self.__shopping_list)
         cost = 0
         for product in products_data:
-            product_amount = products_data[product][0]
-            product_need = self.__shopping_list[product]
-            product_cost = products_data[product][1]
-            is_order_satisfied = product_amount >= product_need
-            order_amount = product_need if is_order_satisfied else product_amount
-            product_amount_coef = 1 if is_order_satisfied else product_amount/product_need
-            cost += product_cost*order_amount/product_amount_coef
-        return cost/products_number_coef
+            if product in self.__shopping_list.keys():
+                product_amount = products_data[product][0]
+                product_need = self.__shopping_list[product]
+                product_cost = products_data[product][1]
+                is_order_satisfied = product_amount >= product_need
+                order_amount = product_need if is_order_satisfied else product_amount
+                product_amount_coef = 1 if is_order_satisfied else product_amount/product_need
+                cost += product_cost*order_amount/product_amount_coef
+        if products_number_coef != 0:
+            return cost/products_number_coef
+        else:
+            return cost
 
     def __create_preference_list(self) -> None:
         """
