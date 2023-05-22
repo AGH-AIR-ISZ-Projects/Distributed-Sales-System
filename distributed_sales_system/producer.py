@@ -3,7 +3,7 @@ from distributed_sales_system.warehouse import Warehouse
 from distributed_sales_system import global_user_register, logging
 from distributed_sales_system.product_register import product_register
 from distributed_sales_system.product_generator import Generator
-from threading import Thread, Event
+from threading import Thread, Lock
 from queue import Queue
 import time
 
@@ -39,6 +39,7 @@ class Producer(Thread):
         self.product_generator = Generator(products)
         self.order_queue = Queue()
         self.request_queue = Queue()
+        self.warehouse_lock = Lock()
         self.id = global_user_register.add_producer(
             self.name, list(self.products.keys()), self.request_queue, self.order_queue)
         self.customer_register = {}
@@ -47,18 +48,26 @@ class Producer(Thread):
         return f"{self.products}"
 
     def run(self) -> None:
-        for i in range(6_000_000):
+        for i in range(20):
             if not self.order_queue.empty():
-                order = self.order_queue.get()
-                order_completed = self.create_order(order)
+                order, customer_reply = self.order_queue.get()
+                print(f"{self.name} order is {order}")
+                with self.warehouse_lock:
+                    order_completed = self.create_order(order)
+                customer_reply.put_nowait(order_completed)
                 # send back to customer
-            while not self.request_queue.empty():
-                print(f"Producer {self.id} queue: {list(self.request_queue.queue)}")
+            elif not self.request_queue.empty():
+                print(f"Producer {self.name} queue: {list(self.request_queue.queue)}")
                 requested_products, customer_queue = self.request_queue.get()
-                products_info = self.display_products(requested_products)
+                with self.warehouse_lock:
+                    products_info = self.display_products(requested_products)
                 customer_queue.put_nowait(products_info)
-                    # send back to customer
-        print(f"Producer {self.id} is done")
+            else:
+                # self.generate_products()
+                # print(f"{self.name} generated a thing!")
+                time.sleep(1)
+             
+        print(f"Producer {self.name} is done")
 
 
 
@@ -168,6 +177,9 @@ class Producer(Thread):
         for name, amount in ordered_product.items():
             if self.check_warehouse(name) < amount:
                 return False
+        
+        for name, amount in ordered_product.items():
+            self.warehouse.decrease_amount(name, amount)
 
         return True
 

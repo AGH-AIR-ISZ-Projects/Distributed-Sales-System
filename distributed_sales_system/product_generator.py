@@ -22,7 +22,7 @@ class GeneratorProduct:
         return f"[create_time: {self.create_time}, create_amount: {self.create_amount}]"
 
 
-class Generator:
+class Generator():
     '''
     A class representing product generator.
 
