@@ -111,7 +111,7 @@ class Warehouse:
             self.products[product_name].amount += amount
         else:
             self.products[product_name].amount = self.products[product_name].limit
-            logging.info(f"Reached limit for {product_name}")
+            # logging.info(f"Reached limit for {product_name}")
 
 
     def decrease_amount(self, product_name: str, amount: int = 1) -> None:

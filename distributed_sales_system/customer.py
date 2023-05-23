@@ -15,6 +15,8 @@ class Customer(Thread):
     ----------
     name (str):
         Name of customer.
+    shopping_tries (int):
+        How much times can customer run the whole ordering routine
     id (int):
         ID of customer in global user register.
     __shopping_list (list):
@@ -28,7 +30,7 @@ class Customer(Thread):
         Stores ID of producers that have at least one product we want to buy.
     """
 
-    def __init__(self, name: str) -> None:
+    def __init__(self, name: str, shopping_tries: int) -> None:
         """
         Function for initialization of customer. ID is generated automatically by global register.
 
@@ -37,6 +39,7 @@ class Customer(Thread):
         """
         super().__init__()
         self.name = name
+        self.shopping_tries = shopping_tries
         self.offer_queue = Queue()
         self.order_status = Queue(maxsize=1)
         self.id = global_user_register.add_customer(name, self.offer_queue)
@@ -46,16 +49,15 @@ class Customer(Thread):
         self.__possible_producers: Dict[int, List] = {}
 
     def run(self) -> None:
-        for x in range(2):
+        for x in range(self.shopping_tries):
             if randint(0, 1):
                 self.browsing_producers_offer()
                 time.sleep(1)
                 self.submit_order()
                 time.sleep(1)
             else:
-                pass
-                print(f"Customer {self.name} nothing to buy")
-            print(f"Customer {self.name} is done")
+                logging.debug(f"nothing to buy")
+        logging.debug(f"is done")
 
 
     def browsing_producers_offer(self) -> None:
@@ -72,11 +74,11 @@ class Customer(Thread):
         self.__generate_shopping_list()
         self.__get_producers_from_register()
         for producer_id, producer_queues in self.__possible_producers.copy().items():
-            producer_queues[0].put_nowait((self.__shopping_list, self.offer_queue))
-            print(f"Customer {self.name} has sent request to {producer_id}")
+            producer_queues[0].put_nowait((list(self.__shopping_list.keys()), self.offer_queue))
+            # logging.debug(f"Customer {self.name} has sent request to {producer_id}")
             producer_data = self.offer_queue.get()
-            print(f"Customer {self.name} received data from producer {producer_data}")
-            print(f"Customer {self.name} queue {list(self.offer_queue.queue)}")
+            # logging.debug(f"Customer {self.name} received data from producer {producer_data}")
+            logging.debug(f"queue {producer_data}")
             self.__remove_product_with_zero_amount(producer_data)
             if producer_data:
                 self.__producers_data[producer_id] = producer_data
@@ -101,7 +103,7 @@ class Customer(Thread):
             if current_order:
                 self.__possible_producers[current_producer_id][1].put_nowait((current_order, self.order_status)) # wyślij zamówienie
                 is_order_completed = self.order_status.get() # odbierz odpowiedź
-                print(f"{self.name} order is: {is_order_completed}")
+                logging.debug(f"order is: {is_order_completed}")
                 if is_order_completed:
                     for bought_product in current_order:
                         self.__shopping_list[bought_product] -= current_order[bought_product]

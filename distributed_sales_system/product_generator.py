@@ -1,4 +1,7 @@
 from typing import List, Tuple
+from sched import scheduler
+import time
+from distributed_sales_system.warehouse import Warehouse
 
 class GeneratorProduct:
     '''
@@ -41,6 +44,7 @@ class Generator():
     default_create_amount = 1
 
     def __init__(self, products_list: List[str] |  List[Tuple[str, float, int, int, int, int]]) -> None:
+        self.scheduler = scheduler(time.monotonic, time.sleep)
         # initialize empty dict
         self.products = {}
         if isinstance(products_list[0], str):
@@ -53,6 +57,16 @@ class Generator():
 
     def __repr__(self) -> str:
         return f"{self.products}"
+    
+
+    def prepare_generator(self, warehouse: Warehouse) -> None:
+        '''
+        Method that schedules every product incrementation
+        '''
+        if not isinstance(warehouse, Warehouse):
+            raise ValueError("Cannot schedule generation without access to proper warehouse!")
+        for name, product in self.products.items():
+            self.scheduler.enter(product.create_time, 1, warehouse.increase_amount, argument=(name, product.create_amount,))
 
 
     def add_product(self, product_name: str, create_time: int = default_create_time, create_amount: int = default_create_amount ) -> None:

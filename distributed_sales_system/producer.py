@@ -1,6 +1,6 @@
 from typing import List, Dict, Union, Optional, Tuple
 from distributed_sales_system.warehouse import Warehouse
-from distributed_sales_system import global_user_register, logging
+from distributed_sales_system import global_user_register, logging, stop_producer
 from distributed_sales_system.product_register import product_register
 from distributed_sales_system.product_generator import Generator
 from threading import Thread, Lock
@@ -48,26 +48,27 @@ class Producer(Thread):
         return f"{self.products}"
 
     def run(self) -> None:
-        for i in range(20):
+        generator = Thread(target=self.generate_products, name=self.name + "_generator", daemon=True)
+        generator.start()
+        while not stop_producer.is_set():
             if not self.order_queue.empty():
                 order, customer_reply = self.order_queue.get()
-                print(f"{self.name} order is {order}")
+                logging.debug(f" order is {order}")
                 with self.warehouse_lock:
                     order_completed = self.create_order(order)
                 customer_reply.put_nowait(order_completed)
                 # send back to customer
-            elif not self.request_queue.empty():
-                print(f"Producer {self.name} queue: {list(self.request_queue.queue)}")
+            if not self.request_queue.empty():
+                logging.debug(f"queue: {list(self.request_queue.queue)}")
                 requested_products, customer_queue = self.request_queue.get()
                 with self.warehouse_lock:
                     products_info = self.display_products(requested_products)
                 customer_queue.put_nowait(products_info)
-            else:
                 # self.generate_products()
-                # print(f"{self.name} generated a thing!")
-                time.sleep(1)
-             
-        print(f"Producer {self.name} is done")
+            # logging.debug(f"{self.name} warehouse: {self.warehouse.products}")
+            time.sleep(1)
+
+        logging.debug(f"is done")
 
 
 
@@ -193,9 +194,11 @@ class Producer(Thread):
             Returns
                     None
         '''
-        for product in self.products:
-            self.warehouse.increase_amount(
-                product, self.product_generator.products[product].create_amount)
+        while True:
+            with self.warehouse_lock:
+                self.product_generator.prepare_generator(self.warehouse)
+            self.product_generator.scheduler.run()
+            logging.debug(f"warehouse: {self.warehouse}")
 
     def __del__(self) -> None:
         '''
