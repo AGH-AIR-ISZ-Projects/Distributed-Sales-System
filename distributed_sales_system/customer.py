@@ -1,8 +1,8 @@
 from distributed_sales_system import global_user_register, logging
 from .product_register import product_register
-from typing import List, Set, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Union
 from random import sample, randint
-from threading import Thread, Event
+from threading import Thread
 import time
 from queue import Queue
 
@@ -30,7 +30,7 @@ class Customer(Thread):
         Stores ID of producers that have at least one product we want to buy.
     """
 
-    def __init__(self, name: str, shopping_tries: int) -> None:
+    def __init__(self, name: str, max_purchases: int, shopping_list: Dict[str, int] = {}) -> None:
         """
         Function for initialization of customer. ID is generated automatically by global register.
 
@@ -39,22 +39,24 @@ class Customer(Thread):
         """
         super().__init__()
         self.name = name
-        self.shopping_tries = shopping_tries
+        self.max_purchases = max_purchases
         self.offer_queue = Queue()
         self.order_status = Queue(maxsize=1)
         self.id = global_user_register.add_customer(name, self.offer_queue)
-        self.__shopping_list: Dict[str, int] = {}
+        self.__shopping_list: Dict[str, int] = shopping_list
         self.__producers_data: Dict[int, Dict[str, List[Union[int, float]]]] = {}
         self.__preference_list: List[Tuple[int, float]] = []
         self.__possible_producers: Dict[int, List] = {}
 
     def run(self) -> None:
-        for x in range(self.shopping_tries):
+        number_of_purchases = 0
+        while number_of_purchases < self.max_purchases:
             if randint(0, 1):
                 self.browsing_producers_offer()
                 time.sleep(1)
                 self.submit_order()
                 time.sleep(1)
+                number_of_purchases += 1
             else:
                 logging.debug(f"nothing to buy")
         logging.debug(f"is done")
@@ -71,7 +73,8 @@ class Customer(Thread):
             Returns:
                 None
         """
-        self.__generate_shopping_list()
+        if not self.__shopping_list:
+            self.__generate_shopping_list()
         self.__get_producers_from_register()
         for producer_id, producer_queues in self.__possible_producers.copy().items():
             producer_queues[0].put_nowait((list(self.__shopping_list.keys()), self.offer_queue))
