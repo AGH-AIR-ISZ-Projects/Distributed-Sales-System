@@ -41,7 +41,7 @@ if __name__ == "__main__":
         producers.append(prod)
 
     for x in range(2):
-        cust = Customer(name=f'customer_{x}', shopping_tries=randint(1,5))
+        cust = Customer(name=f'customer_{x}', max_purchases=randint(1,5))
         cust.start()
         customers.append(cust)
 
