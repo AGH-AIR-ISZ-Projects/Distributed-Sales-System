@@ -60,10 +60,13 @@ class Producer(Thread):
                 # send back to customer
             if not self.request_queue.empty():
                 logging.debug(f"queue: {list(self.request_queue.queue)}")
-                requested_products, customer_queue = self.request_queue.get()
-                with self.warehouse_lock:
-                    products_info = self.display_products(requested_products)
-                customer_queue.put_nowait(products_info)
+                customer_id, requested_products, customer_queue = self.request_queue.get()
+                if global_user_register.check_customer_id(customer_id):
+                    with self.warehouse_lock:
+                        products_info = self.display_products(requested_products)
+                    customer_queue.put_nowait(products_info)
+                else:
+                    logging.debug("Request not from customer")
                 # self.generate_products()
             # logging.debug(f"{self.name} warehouse: {self.warehouse.products}")
             time.sleep(1)

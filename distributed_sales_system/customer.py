@@ -15,31 +15,34 @@ class Customer(Thread):
     ----------
     name (str):
         Name of customer.
-    shopping_tries (int):
-        How much times can customer run the whole ordering routine
+    purchases (int):
+        Number of whole ordering routine before customer end shopping.
     id (int):
         ID of customer in global user register.
-    __shopping_list (list):
-        Name of products that we want ro buy. It generated automatically based on products available in product register.
+    __shopping_list (dict):
+        Name of products mapped to amount. Represents shopping list. It can be passed as argument or be generated
+        automatically based on products available in product register.
     __producers_data (dict):
         Dictionary mapping producer id to offered products. Information about product contain available amount and
         price per unit.
     __preference_list (list):
         List of preference producers, by selection criterion. We prefer producers that can complete most part of order.
-    __possible_producers (set):
-        Stores ID of producers that have at least one product we want to buy.
+    __possible_producers (dict):
+        Stores ID and queues (communication) of producers that have at least one product we want to buy.
     """
 
-    def __init__(self, name: str, max_purchases: int, shopping_list: Dict[str, int] = {}) -> None:
+    def __init__(self, name: str, purchases: int, shopping_list: Dict[str, int] = {}) -> None:
         """
         Function for initialization of customer. ID is generated automatically by global register.
 
         Parameters:
             name (str): Name of customer.
+            purchases (int): Number of purchases that customer will make
+            shopping_list (dict): Dict mapping name of product to it's number
         """
         super().__init__()
         self.name = name
-        self.max_purchases = max_purchases
+        self.purchases = purchases
         self.offer_queue = Queue()
         self.order_status = Queue(maxsize=1)
         self.id = global_user_register.add_customer(name, self.offer_queue)
@@ -49,8 +52,19 @@ class Customer(Thread):
         self.__possible_producers: Dict[int, List] = {}
 
     def run(self) -> None:
+        """
+        Function representing customer behaviour. It includes:
+        - decision to start shopping,
+        - browsing producers offer,
+        - submitting orders.
+        Customer follow shopping routine as long as he made fix number of purchases.
+
+            Returns:
+                None
+
+        """
         number_of_purchases = 0
-        while number_of_purchases < self.max_purchases:
+        while number_of_purchases < self.purchases:
             if randint(0, 1):
                 self.browsing_producers_offer()
                 time.sleep(1)
@@ -77,9 +91,9 @@ class Customer(Thread):
             self.__generate_shopping_list()
         self.__get_producers_from_register()
         for producer_id, producer_queues in self.__possible_producers.copy().items():
-            producer_queues[0].put_nowait((list(self.__shopping_list.keys()), self.offer_queue))
+            producer_queues[0].put_nowait((self.id, list(self.__shopping_list.keys()), self.offer_queue))
             # logging.debug(f"Customer {self.name} has sent request to {producer_id}")
-            producer_data = self.offer_queue.get()
+            producer_data = self.offer_queue.get(timeout=10)
             # logging.debug(f"Customer {self.name} received data from producer {producer_data}")
             logging.debug(f"queue {producer_data}")
             self.__remove_product_with_zero_amount(producer_data)
