@@ -1,5 +1,5 @@
-from typing import List, Tuple, Union
-from distributed_sales_system import logging
+from typing import List,  Union, Dict
+
 
 class WarehouseProduct:
 
@@ -42,15 +42,35 @@ class Warehouse:
     default_amount = 5
     default_limit = 100
 
-    def __init__(self, products_list: Union[List[str], List[Tuple[str, float, int, int, int, int]]]) -> None:
-        # initialize empty dict
+    def __init__(self, products_list: Union[List[str], Dict[str, Dict[str, Union[float, int]]]]) -> None:
         self.products = {}
-        if isinstance(products_list[0], str):
+        if isinstance(products_list, List):
             for name in products_list:
                 self.products[name] = WarehouseProduct(Warehouse.default_amount, Warehouse.default_limit)
         else:
-            for name, _, amount, limit, _, _ in products_list:
-                self.products[name] = WarehouseProduct(amount, limit)
+            for name, params in products_list.items():
+                product_init_list = [Warehouse.default_amount, Warehouse.default_limit]
+                if 'amount' in params.keys():
+                    if not isinstance(params['amount'], int):
+                        raise ValueError("Warehouse: Amout has to be integer!")
+                    if params['amount'] < 0:
+                        raise ValueError("Warehouse: Cannot have less products than zero!")
+                    product_init_list[0] = params['amount']
+                if 'limit' in params.keys():
+                    if not isinstance(params['limit'], int):
+                        raise ValueError("Warehouse: Limit has to be integer!")
+                    if params['limit'] < 0:
+                        raise ValueError("Warehouse: Limit cannot be less than zero!")
+                    if params['limit'] > 1000:
+                        raise ValueError("Warehouse: Limit cannot be more than 1000!")
+                    product_init_list[1] = params['limit']
+
+                # check if limit is more than amount
+                if product_init_list[0] >= product_init_list[1]:
+                    raise ValueError(f"Warehouse: Can't have more product: ({product_init_list[0]}) than it's limit: ({product_init_list[1]})!")
+                
+                self.products[name] = WarehouseProduct(product_init_list[0], product_init_list[1])
+
 
 
 
@@ -71,7 +91,7 @@ class Warehouse:
                     None
         '''
         if product_name in self.products:
-            raise ValueError("Product already exists in warehouse!")
+            raise ValueError("Warehouse: Product already exists in warehouse!")
         else:
             self.products[product_name] = WarehouseProduct(amount, limit)
 
@@ -106,7 +126,7 @@ class Warehouse:
                     None
         '''
         if product_name not in self.products:
-            raise ValueError("Product doesn't exists in warehouse!")
+            raise ValueError("Warehouse: Product doesn't exists in warehouse!")
         if (self.products[product_name].amount + amount) < self.products[product_name].limit:
             self.products[product_name].amount += amount
         else:
@@ -128,11 +148,11 @@ class Warehouse:
                     None
         '''
         if product_name not in self.products:
-            raise ValueError("Product doesn't exists in warehouse!")
+            raise ValueError("Warehouse: Product doesn't exists in warehouse!")
         if self.products[product_name].amount - amount >= 0:
             self.products[product_name].amount -= amount
         else:
-            raise ValueError("Cannot have less products than zero!")
+            raise ValueError("Warehouse: Cannot have less products than zero!")
 
     def change_limit(self, product_name: str, limit: int = 10) -> None:
         '''
@@ -148,10 +168,10 @@ class Warehouse:
                     None
         '''
         if product_name not in self.products:
-            raise ValueError("Product doesn't exists in warehouse!")
+            raise ValueError("Warehouse: Product doesn't exists in warehouse!")
         if self.products[product_name].limit < 0:
-            raise ValueError("Limit cannot be less than zero!")
+            raise ValueError("Warehouse: Limit cannot be less than zero!")
         elif self.products[product_name].limit > 1000:
-            raise ValueError("Limit cannot be more than a 1000!")
+            raise ValueError("Warehouse: Limit cannot be more than a 1000!")
         else:
             self.products[product_name].limit = limit

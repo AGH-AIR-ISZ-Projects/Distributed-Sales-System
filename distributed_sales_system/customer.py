@@ -4,7 +4,7 @@ from typing import List, Dict, Tuple, Union
 from random import sample, randint
 from threading import Thread
 import time
-from queue import Queue
+from queue import Queue, Empty
 
 
 class Customer(Thread):
@@ -90,10 +90,15 @@ class Customer(Thread):
         if not self.__shopping_list:
             self.__generate_shopping_list()
         self.__get_producers_from_register()
+        logging.debug(f"wants to get {self.__shopping_list}")
         for producer_id, producer_queues in self.__possible_producers.copy().items():
             producer_queues[0].put_nowait((self.id, list(self.__shopping_list.keys()), self.offer_queue))
             # logging.debug(f"Customer {self.name} has sent request to {producer_id}")
-            producer_data = self.offer_queue.get(timeout=10)
+            try:
+                producer_data = self.offer_queue.get(timeout=10)
+            except Empty:
+                del self.__possible_producers[producer_id]
+                continue
             # logging.debug(f"Customer {self.name} received data from producer {producer_data}")
             logging.debug(f"queue {producer_data}")
             self.__remove_product_with_zero_amount(producer_data)
@@ -121,6 +126,7 @@ class Customer(Thread):
                 self.__possible_producers[current_producer_id][1].put_nowait((current_order, self.order_status)) # wyślij zamówienie
                 is_order_completed = self.order_status.get() # odbierz odpowiedź
                 logging.debug(f"order is: {is_order_completed}")
+                logging.debug(f"shopping list is {self.__shopping_list}")
                 if is_order_completed:
                     for bought_product in current_order:
                         self.__shopping_list[bought_product] -= current_order[bought_product]

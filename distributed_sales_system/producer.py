@@ -29,9 +29,13 @@ class Producer(Thread):
             Id of the producer in global user register.
     customer_register (dict):
             Stores customer id and keeps track of total amount of cash that he spent. Used for discounts.
+    defaultPrice (int):
+            Class attribute, default price assigned to product in not specified
     '''
 
-    def __init__(self, name: str, products: Union[List[str], List[Tuple[str, float, int, int, int, int]]]) -> None:
+    defaultPrice = 1.0
+
+    def __init__(self, name: str, products: Union[List[str], Dict[str, Dict[str, Union[float, int]]]]) -> None:
         super().__init__()
         self.name = name
         self.products = self.__add_products(products)
@@ -48,12 +52,25 @@ class Producer(Thread):
         return f"{self.products}"
 
     def run(self) -> None:
+        '''
+        Method represents producer execution. It includes:
+        - starting daemon thread for generation of products. It runs when request and order queues are empty.
+        - handling of customers requests for offered products
+        - handling of customers orders
+
+        Producer works until global stop_producer event is set. Usually this event is set after customers threads end.
+        If stop_producer event is not set then thread won't terminate!
+
+            Returns:
+                None
+
+        '''
         generator = Thread(target=self.generate_products, name=self.name + "_generator", daemon=True)
         generator.start()
         while not stop_producer.is_set():
             if not self.order_queue.empty():
                 order, customer_reply = self.order_queue.get()
-                logging.debug(f" order is {order}")
+                logging.debug(f"order is {order}")
                 with self.warehouse_lock:
                     order_completed = self.create_order(order)
                 customer_reply.put_nowait(order_completed)
@@ -71,7 +88,7 @@ class Producer(Thread):
             # logging.debug(f"{self.name} warehouse: {self.warehouse.products}")
             time.sleep(1)
 
-        logging.debug(f"is done")
+        logging.debug("is done")
 
 
 
@@ -81,28 +98,36 @@ class Producer(Thread):
         Inner function used for initalization of 'products' field.
 
             Parameters:
-                    products (list): List contatining names of products (str) or tuples with name, price, initial amount
-                                    and limit of production.
+                    products (list | dict): List contatining names of products (str) or dicts with name, price, initial amount
+                                    and limit of production. Dict may not have all parameters, in that case they're initalised
+                                    with default values.
 
             Returns:
                     out_dict (dict): Dictionary mapping name to price (name:price).
         '''
         out_dict = {}
-        if isinstance(products[0], str):
+        if isinstance(products, List):
             for name in products:
                 if name in product_register:
-                    out_dict[name] = 1
+                    out_dict[name] = Producer.defaultPrice
                 else:
-                    raise ValueError("Product not possible")
+                    raise ValueError("Producer: Product not possible")
         else:
-            for name, price, _, _, _, _ in products:
+            for name, params in products.items():
                 if name in product_register:
-                    out_dict[name] = price
+                    if 'price' in params.keys():
+                        if not isinstance(params['price'], (float, int)):
+                            raise ValueError("Producer: Price has to be either float or int!")
+                        if params['price'] < 0:
+                            raise ValueError("Producer: Price has to be greater than zero!")
+                        out_dict[name] = float(params['price'])
+                    else:
+                        out_dict[name] = Producer.defaultPrice
                 else:
-                    raise ValueError("Product not possible")
+                    raise ValueError("Producer: Product not possible")
         return out_dict
 
-    def add_product(self, name, price, amount=Warehouse.default_amount, limit=Warehouse.default_limit,
+    def add_product(self, name, price=defaultPrice, amount=Warehouse.default_amount, limit=Warehouse.default_limit,
                     create_time=Generator.default_create_time, create_amount=Generator.default_create_amount) -> None:
         '''
         Method for adding new products.
@@ -115,9 +140,9 @@ class Producer(Thread):
                     out_dict (dict): Dictionary mapping name to price (name:price).
         '''
         if name in self.products:
-            raise ValueError("Product already exists!")
-        elif name not in product_register:
-            raise ValueError("Product not possible")
+            raise ValueError("Producer: Product already exists!")
+        if name not in product_register:
+            raise ValueError("Producer: Product not possible")
         self.products[name] = price
         self.warehouse.add_product(name, amount, limit)
         self.product_generator.add_product(name, create_time, create_amount)
@@ -213,4 +238,5 @@ class Producer(Thread):
             Returns:
                     None
         '''
-        global_user_register.delete_user(self.id)
+        if hasattr(self, 'self.id'):
+            global_user_register.delete_user(self.id)
