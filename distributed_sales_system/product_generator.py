@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union, Dict
 from sched import scheduler
 import time
 from distributed_sales_system.warehouse import Warehouse
@@ -43,16 +43,33 @@ class Generator():
     default_create_time = 5
     default_create_amount = 1
 
-    def __init__(self, products_list: List[str] |  List[Tuple[str, float, int, int, int, int]]) -> None:
-        self.scheduler = scheduler(time.monotonic, time.sleep)
-        # initialize empty dict
+    def __init__(self, products_list: Union[List[str], Dict[str, Dict[str, Union[float, int]]]]) -> None:
+        self.scheduler = scheduler(time.monotonic, time.sleep)  # start scheduler
         self.products = {}
-        if isinstance(products_list[0], str):
+        if isinstance(products_list, List):
             for name in products_list:
                 self.products[name] = GeneratorProduct(Generator.default_create_time, Generator.default_create_amount)
         else:
-            for name, _, _, _, create_time, create_amount  in products_list:
-                self.products[name] = GeneratorProduct(create_time, create_amount)
+            for name, params in products_list.items():
+                product_init_list = [Generator.default_create_time, Generator.default_create_amount]
+                if 'create_time' in params.keys():
+                    if not isinstance(params['create_time'], int):
+                        raise ValueError("Generator: Product creation time has to be integer!")
+                    if params['create_time'] < 0:
+                        raise ValueError("Generator: Product creation time cannot be less than zero!")
+                    if params['create_time'] > 1000:
+                        raise ValueError("Generator: Product creation time cannot be more than 1000!")
+                    product_init_list[0] = params['create_time']
+                if 'create_amount' in params.keys():
+                    if not isinstance(params['create_amount'], int):
+                        raise ValueError("Generator: Product create amount has to be integer!")
+                    if params['create_amount'] < 0:
+                        raise ValueError("Generator: Cannot produce less than zero!")
+                    if params['create_amount'] > 50:
+                        raise ValueError("Generator: Cannot produce more at a time than 50!")
+                    product_init_list[1] = params['create_amount']
+                
+                self.products[name] = GeneratorProduct(product_init_list[0], product_init_list[1])
 
 
     def __repr__(self) -> str:
@@ -61,10 +78,17 @@ class Generator():
 
     def prepare_generator(self, warehouse: Warehouse) -> None:
         '''
-        Method that schedules every product incrementation
+        Method that schedules every product incrementation. 
+        Used within daemon thread so no need to reschedule on 'enter'.
+
+            Parameters:
+                    warehouse (Warehouse): warehouse instance from producer, 
+                    as we need to schedule warehouse increase amount method.
+            Returns:
+                    None
         '''
         if not isinstance(warehouse, Warehouse):
-            raise ValueError("Cannot schedule generation without access to proper warehouse!")
+            raise ValueError("Generator: Cannot schedule generation without access to proper warehouse!")
         for name, product in self.products.items():
             self.scheduler.enter(product.create_time, 1, warehouse.increase_amount, argument=(name, product.create_amount,))
 
@@ -82,7 +106,7 @@ class Generator():
                     None
         '''
         if product_name in self.products:
-            raise ValueError("Product is already generated!")
+            raise ValueError("Generator: Product is already generated!")
         else:
             self.products[product_name] = GeneratorProduct(create_time, create_amount)
 
@@ -115,12 +139,12 @@ class Generator():
                     None
         '''
         if product_name not in self.products:
-            raise ValueError("Product is not generated!")
+            raise ValueError("Generator: Product is not generated!")
         if (self.products[product_name].create_amount + create_amount) < 50:
             self.products[product_name].create_amount += create_amount
         else:
             raise ValueError(
-                "Cannot produce more at a time than 50!")
+                "Generator: Cannot produce more at a time than 50!")
 
     def decrease_create_amount(self, product_name: str, create_amount: int = 1) -> None:
         '''
@@ -135,11 +159,11 @@ class Generator():
                     None
         '''
         if product_name not in self.products:
-            raise ValueError("Product is not generated!")
+            raise ValueError("Generator: Product is not generated!")
         if self.products[product_name].create_amount - create_amount >= 0:
             self.products[product_name].create_amount -= create_amount
         else:
-            raise ValueError("Cannot produce less than zero!")
+            raise ValueError("Generator: Cannot produce less than zero!")
 
     def change_create_time(self, product_name: str, create_time: int = 5) -> None:
         '''
@@ -155,10 +179,10 @@ class Generator():
                     None
         '''
         if product_name not in self.products:
-            raise ValueError("Product is not generated!")
+            raise ValueError("Generator: Product is not generated!")
         if self.products[product_name].create_time < 0:
-            raise ValueError("Product creation time cannot be less than zero")
+            raise ValueError("Generator: Product creation time cannot be less than zero")
         elif self.products[product_name].create_time > 1000:
-            raise ValueError("Product creation time cannot be more than a 1000!")
+            raise ValueError("Generator: Product creation time cannot be more than a 1000!")
         else:
             self.products[product_name].create_time = create_time
