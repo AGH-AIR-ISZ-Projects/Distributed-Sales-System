@@ -145,6 +145,23 @@ class UserRegister:
             del self.__producer_register[user_id]
         self.__delete_id(user_id)
 
+    def check_customer_id(self, customer_id) -> bool:
+        """
+        Interface for producers - function used for checking if ID belongs to customer.
+
+            Parameters:
+                customer_id (int): ID that will be checked.
+
+            Returns:
+                True if ID belongs to customer/False if not (producer ID or not in register)
+
+        """
+        if customer_id in self.__customer_register.keys():
+            return True
+        else:
+            return False
+            # raise ValueError("Incorrect ID")
+
     def __check_producer_id(self, producer_id) -> Optional[bool]:
         """
         Inner function used for checking if producer ID is correct (is in register and isn't assigned to customer).
