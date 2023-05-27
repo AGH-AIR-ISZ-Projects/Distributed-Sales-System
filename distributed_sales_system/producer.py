@@ -204,7 +204,10 @@ class Producer(Thread):
                     True if whole order is possible to make, False otherwise.
         '''
         for name, amount in ordered_product.items():
-            if self.check_warehouse(name) < amount:
+            product_status = self.check_warehouse(name)
+            if product_status is None:
+                return False
+            if product_status < amount:
                 return False
         
         for name, amount in ordered_product.items():

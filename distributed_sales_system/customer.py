@@ -1,6 +1,6 @@
 from distributed_sales_system import global_user_register, logging
 from .product_register import product_register
-from typing import List, Dict, Tuple, Union
+from typing import List, Dict, Tuple, Union, Optional
 from random import sample, randint
 from threading import Thread
 import time
@@ -31,7 +31,7 @@ class Customer(Thread):
         Stores ID and queues (communication) of producers that have at least one product we want to buy.
     """
 
-    def __init__(self, name: str, purchases: int, shopping_list: Dict[str, int] = {}) -> None:
+    def __init__(self, name: str, purchases: int, shopping_list: Optional[Dict[str, int]] = None) -> None:
         """
         Function for initialization of customer. ID is generated automatically by global register.
 
@@ -46,10 +46,13 @@ class Customer(Thread):
         self.offer_queue = Queue()
         self.order_status = Queue(maxsize=1)
         self.id = global_user_register.add_customer(name, self.offer_queue)
-        self.__shopping_list: Dict[str, int] = shopping_list
         self.__producers_data: Dict[int, Dict[str, List[Union[int, float]]]] = {}
         self.__preference_list: List[Tuple[int, float]] = []
         self.__possible_producers: Dict[int, List] = {}
+        if shopping_list is None:
+            self.__shopping_list: Dict[str, int] = {}
+        else:    
+            self.__shopping_list: Dict[str, int] = shopping_list
 
     def run(self) -> None:
         """

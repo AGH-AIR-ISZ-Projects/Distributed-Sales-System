@@ -1,7 +1,7 @@
 # from distributed_sales_system.warehouse import Warehouse
 from distributed_sales_system.customer import Customer
 from distributed_sales_system.producer import Producer
-from distributed_sales_system import stop_producer, global_user_register
+from distributed_sales_system import stop_producer
 from distributed_sales_system.product_register import product_register
 from random import randint, sample
 
@@ -44,15 +44,16 @@ if __name__ == "__main__":
     customers = []
     producers = []
 
-    for x in range(2):
+    for x in range(20):
         prod = Producer(name=f'producer_{x}', products=sample(product_register, randint(1, len(product_register))))
         prod.start()
         producers.append(prod)
 
-    for x in range(3):
+    for x in range(60):
         cust = Customer(name=f'customer_{x}', purchases=1)
         cust.start()
         customers.append(cust)
+
 
     for cust in customers:
         cust.join()
