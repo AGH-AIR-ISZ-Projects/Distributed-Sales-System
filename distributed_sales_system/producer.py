@@ -34,6 +34,7 @@ class Producer(Thread):
     '''
 
     defaultPrice = 1.0
+    discountThreshold = 50.0
 
     def __init__(self, name: str, products: Union[List[str], Dict[str, Dict[str, Union[float, int]]]]) -> None:
         super().__init__()
@@ -69,18 +70,31 @@ class Producer(Thread):
         generator.start()
         while not stop_producer.is_set():
             if not self.order_queue.empty():
-                order, customer_reply = self.order_queue.get()
+                customer_id, order, customer_reply = self.order_queue.get()
                 logging.debug(f"order is {order}")
                 with self.warehouse_lock:
                     order_completed = self.create_order(order)
-                customer_reply.put_nowait(order_completed)
                 # send back to customer
+                customer_reply.put_nowait(order_completed)
+                
+                if order_completed:
+                   customer_name = global_user_register.check_customer_id(customer_id)
+                   # sum customer spendings only up to discount threshold, after that we always give him 5% discount
+                   if customer_name not in self.customer_register.keys() or self.customer_register[customer_name] <= self.discountThreshold:
+                       self.customer_register[customer_name] += sum((order[name]*self.products[name] for name in order))
+                        
             if not self.request_queue.empty():
                 logging.debug(f"queue: {list(self.request_queue.queue)}")
                 customer_id, requested_products, customer_queue = self.request_queue.get()
-                if global_user_register.check_customer_id(customer_id):
-                    with self.warehouse_lock:
-                        products_info = self.display_products(requested_products)
+                customer_name = global_user_register.check_customer_id(customer_id)
+                if customer_name:
+                    if customer_name in self.customer_register.keys() and self.customer_register[customer_name] > self.discountThreshold:
+                        with self.warehouse_lock:
+                            products_info = self.display_products(requested_products, discount_multiplier=0.95)
+                    else:
+                        with self.warehouse_lock:
+                            products_info = self.display_products(requested_products)
+                            logging.debug(f"{customer_name} got discount!")
                     customer_queue.put_nowait(products_info)
                 else:
                     logging.debug("Request not from customer")
@@ -175,13 +189,13 @@ class Producer(Thread):
         return self.warehouse.products[product_name].amount \
             if product_name in self.warehouse.products.keys() else None
 
-    def display_products(self, requested_products: List[str]) -> Dict[str, List[Union[int, float]]]:
+    def display_products(self, requested_products: List[str], discount_multiplier: float = 1.0) -> Dict[str, List[Union[int, float]]]:
         '''
         Method used for replying to customer's request.
 
             Parameters:
-                    requested_products (List): List of strings representing products that customer wants to buy
-
+                    requested_products (List): List of strings representing products that customer wants to buy.
+                    discount_multiplier (float): prices of all products are reduced by this multiplier. Default and max is 1.0 (no discount).
             Returns:
                     response_dict (Dict): Mapped products to their amount or None in case it's not available.
         '''
@@ -189,7 +203,7 @@ class Producer(Thread):
         for product_name in requested_products:
             if product_name in self.products.keys():
                 response_dict[product_name] = [self.check_warehouse(
-                    product_name), self.products[product_name]]
+                    product_name), self.products[product_name]*discount_multiplier]
 
         return response_dict
 

@@ -44,12 +44,12 @@ if __name__ == "__main__":
     customers = []
     producers = []
 
-    for x in range(20):
+    for x in range(2):
         prod = Producer(name=f'producer_{x}', products=sample(product_register, randint(1, len(product_register))))
         prod.start()
         producers.append(prod)
 
-    for x in range(60):
+    for x in range(6):
         cust = Customer(name=f'customer_{x}', purchases=1)
         cust.start()
         customers.append(cust)
