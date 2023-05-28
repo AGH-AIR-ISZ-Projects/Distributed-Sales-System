@@ -157,7 +157,7 @@ class UserRegister:
 
         """
         if customer_id in self.__customer_register.keys():
-            return True
+            return self.__customer_register[customer_id][0]
         else:
             return False
             # raise ValueError("Incorrect ID")

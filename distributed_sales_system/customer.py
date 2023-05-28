@@ -126,7 +126,7 @@ class Customer(Thread):
             current_producer_id = self.__preference_list.pop(0)[0]
             current_order = self.__prepare_order_for_producer(current_producer_id)
             if current_order:
-                self.__possible_producers[current_producer_id][1].put_nowait((current_order, self.order_status)) # wyślij zamówienie
+                self.__possible_producers[current_producer_id][1].put_nowait((self.id, current_order, self.order_status)) # wyślij zamówienie
                 is_order_completed = self.order_status.get() # odbierz odpowiedź
                 logging.debug(f"order is: {is_order_completed}")
                 logging.debug(f"shopping list is {self.__shopping_list}")
