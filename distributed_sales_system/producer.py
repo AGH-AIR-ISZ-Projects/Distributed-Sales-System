@@ -8,7 +8,6 @@ from queue import Queue
 import time
 
 
-
 class Producer(Thread):
     '''
     A class to represent producer.
@@ -78,11 +77,12 @@ class Producer(Thread):
                 customer_reply.put_nowait(order_completed)
                 
                 if order_completed:
-                   customer_name = global_user_register.check_customer_id(customer_id)
-                   # sum customer spendings only up to discount threshold, after that we always give him 5% discount
-                   if customer_name not in self.customer_register.keys() or self.customer_register[customer_name] <= self.discountThreshold:
-                       self.customer_register[customer_name] += sum((order[name]*self.products[name] for name in order))
-                        
+                    customer_name = global_user_register.check_customer_id(customer_id)
+                    # sum customer spendings only up to discount threshold, after that we always give him 5% discount
+                    if customer_name not in self.customer_register.keys():
+                        self.customer_register[customer_name] = sum((order[name] * self.products[name] for name in order))
+                    elif self.customer_register[customer_name] <= self.discountThreshold:
+                        self.customer_register[customer_name] += sum((order[name] * self.products[name] for name in order))
             if not self.request_queue.empty():
                 logging.debug(f"queue: {list(self.request_queue.queue)}")
                 customer_id, requested_products, customer_queue = self.request_queue.get()
