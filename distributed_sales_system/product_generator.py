@@ -2,6 +2,7 @@ from typing import List, Tuple, Union, Dict
 from sched import scheduler
 import time
 from distributed_sales_system.warehouse import Warehouse
+from distributed_sales_system import logging
 
 class GeneratorProduct:
     '''
@@ -90,10 +91,17 @@ class Generator():
         if not isinstance(warehouse, Warehouse):
             raise ValueError("Generator: Cannot schedule generation without access to proper warehouse!")
         for name, product in self.products.items():
-            self.scheduler.enter(product.create_time, 1, warehouse.increase_amount, argument=(name, product.create_amount,))
+            self.scheduler.enter(product.create_time, 1, self.__increase_amount_wrapper, argument=(warehouse, name, product.create_amount, product.create_time))
+
+    
+    def __increase_amount_wrapper(self, warehouse, name, create_amount, create_time, stop=False):
+        if not stop:
+            self.scheduler.enter(create_time, 1, self.__increase_amount_wrapper, argument=(warehouse, name, create_amount, create_time,))
+            warehouse.increase_amount(name, create_amount)
+            logging.debug(f"warehouse: {warehouse}")
 
 
-    def add_product(self, product_name: str, create_time: int = default_create_time, create_amount: int = default_create_amount ) -> None:
+    def add_product(self, product_name: str, warehouse: Warehouse, create_time: int = default_create_time, create_amount: int = default_create_amount) -> None:
         '''
         Method for adding new products to generator. Only to be used as part of Producer.add_product method
         (otherwise errors are likely to happen).
@@ -109,7 +117,7 @@ class Generator():
             raise ValueError("Generator: Product is already generated!")
         else:
             self.products[product_name] = GeneratorProduct(create_time, create_amount)
-
+            self.scheduler.enter(create_time, 1, self.__increase_amount_wrapper, argument=(warehouse, product_name, create_amount, create_time))
 
     def delete_product(self, product_name: str) -> None:
         '''
@@ -124,6 +132,10 @@ class Generator():
         '''
         if product_name in self.products:
             del self.products[product_name]
+            for event in self.scheduler.queue:
+                if event.argument[1] == product_name:
+                    self.scheduler.cancel(event)
+
 
 
     def increase_create_amount(self, product_name: str, create_amount: int = 1) -> None:

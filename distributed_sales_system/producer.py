@@ -91,16 +91,16 @@ class Producer(Thread):
                     if customer_name in self.customer_register.keys() and self.customer_register[customer_name] > self.discountThreshold:
                         with self.warehouse_lock:
                             products_info = self.display_products(requested_products, discount_multiplier=0.95)
+                            logging.debug(f"{customer_name} got discount!")
                     else:
                         with self.warehouse_lock:
                             products_info = self.display_products(requested_products)
-                            logging.debug(f"{customer_name} got discount!")
                     customer_queue.put_nowait(products_info)
                 else:
                     logging.debug("Request not from customer")
                 # self.generate_products()
             # logging.debug(f"{self.name} warehouse: {self.warehouse.products}")
-            time.sleep(1)
+            # time.sleep(1)
 
         logging.debug("is done")
 
@@ -159,7 +159,7 @@ class Producer(Thread):
             raise ValueError("Producer: Product not possible")
         self.products[name] = price
         self.warehouse.add_product(name, amount, limit)
-        self.product_generator.add_product(name, create_time, create_amount)
+        self.product_generator.add_product(name, self.warehouse, create_time, create_amount)
 
     def delete_product(self, name) -> None:
         '''
@@ -173,8 +173,8 @@ class Producer(Thread):
         '''
         if name in self.products:
             del self.products[name]
-            self.warehouse.delete_product(name)
             self.product_generator.delete_product(name)
+            self.warehouse.delete_product(name)
 
     def check_warehouse(self, product_name: str) -> Union[int, None]:
         '''
@@ -239,11 +239,9 @@ class Producer(Thread):
             Returns
                     None
         '''
-        while True:
-            with self.warehouse_lock:
-                self.product_generator.prepare_generator(self.warehouse)
-            self.product_generator.scheduler.run()
-            logging.debug(f"warehouse: {self.warehouse}")
+        with self.warehouse_lock:
+            self.product_generator.prepare_generator(self.warehouse)
+        self.product_generator.scheduler.run()
 
     def __del__(self) -> None:
         '''

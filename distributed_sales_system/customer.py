@@ -70,13 +70,11 @@ class Customer(Thread):
         while number_of_purchases < self.purchases:
             if randint(0, 1):
                 self.browsing_producers_offer()
-                time.sleep(1)
+                # time.sleep(1)
                 self.submit_order()
-                time.sleep(1)
+                # time.sleep(1)
                 number_of_purchases += 1
-            else:
-                logging.debug(f"nothing to buy")
-        logging.debug(f"is done")
+        logging.debug("is done")
 
 
     def browsing_producers_offer(self) -> None:
@@ -123,13 +121,13 @@ class Customer(Thread):
                 None
         """
         while self.__shopping_list and self.__possible_producers:
+            logging.debug(f"shopping list is {self.__shopping_list}")
             current_producer_id = self.__preference_list.pop(0)[0]
             current_order = self.__prepare_order_for_producer(current_producer_id)
             if current_order:
                 self.__possible_producers[current_producer_id][1].put_nowait((self.id, current_order, self.order_status)) # wyślij zamówienie
                 is_order_completed = self.order_status.get() # odbierz odpowiedź
                 logging.debug(f"order is: {is_order_completed}")
-                logging.debug(f"shopping list is {self.__shopping_list}")
                 if is_order_completed:
                     for bought_product in current_order:
                         self.__shopping_list[bought_product] -= current_order[bought_product]
@@ -216,7 +214,8 @@ class Customer(Thread):
             Returns:
                 cost (float): Value of cost function.
         """
-        products_number_coef = len(set(products_data.keys())&set(self.__shopping_list.keys()))/len(self.__shopping_list)
+
+        products_number_coef = len(set(self.__shopping_list.keys())-(set(products_data.keys())))/len(self.__shopping_list)
         cost = 0
         for product in products_data:
             if product in self.__shopping_list.keys():
@@ -232,6 +231,7 @@ class Customer(Thread):
         else:
             return cost
 
+
     def __create_preference_list(self) -> None:
         """
         Internal function for creating preference list. It includes:
@@ -244,6 +244,7 @@ class Customer(Thread):
         cost_for_producers = []
         for possible_producer in self.__possible_producers:
             cost_for_producers.append((possible_producer, self.__cost_function(self.__producers_data[possible_producer])))
+        logging.debug(f"{cost_for_producers}")
         self.__preference_list = sorted(cost_for_producers, key=lambda producer_data: producer_data[1])
 
     def __remove_shopping_data_finished_order(self) -> None:
