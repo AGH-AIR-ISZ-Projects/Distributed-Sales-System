@@ -244,7 +244,7 @@ class Customer(Thread):
         cost_for_producers = []
         for possible_producer in self.__possible_producers:
             cost_for_producers.append((possible_producer, self.__cost_function(self.__producers_data[possible_producer])))
-        logging.debug(f"{cost_for_producers}")
+        logging.debug(f"preference list: {cost_for_producers}")
         self.__preference_list = sorted(cost_for_producers, key=lambda producer_data: producer_data[1])
 
     def __remove_shopping_data_finished_order(self) -> None:

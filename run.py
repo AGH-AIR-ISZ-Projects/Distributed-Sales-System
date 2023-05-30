@@ -102,13 +102,13 @@ def DiscountTest():
 
 def ProductGeneratorTest():
     import time
-    producer1 = Producer('producer_1',  products={"apple": {'create_time': 2, 'create_amount': 10}, 
-                                                  "pear": {'create_time': 4, 'create_amount': 20}, 
-                                                  "banana": {'create_time': 5, 'create_amount': 30}, 
-                                                  "orange": {'create_time': 10, 'create_amount': 40}})
+    producer1 = Producer('producer_1',  products={"apple": {'create_time': 1, 'create_amount': 10}, 
+                                                  "pear": {'create_time': 2, 'create_amount': 20}, 
+                                                  "banana": {'create_time': 4, 'create_amount': 30}, 
+                                                  "orange": {'create_time': 5, 'create_amount': 40}})
     
     producer1.start()
-    time.sleep(20)
+    time.sleep(10)
 
     stop_producer.set()
     
@@ -118,12 +118,12 @@ def AddNewProductsTest():
     producer1 = Producer('producer_1',  products={"apple": {'create_time': 2, 'create_amount': 10}})
 
     producer1.start()
-    time.sleep(10)
+    time.sleep(5)
 
     with producer1.warehouse_lock:
         producer1.add_product("banana", create_time=1)
 
-    time.sleep(10)
+    time.sleep(5)
 
     with producer1.warehouse_lock:
         producer1.delete_product("apple")
@@ -137,11 +137,11 @@ def EnduranceTest():
     customers = []
     # producers = []
 
-    for i in range(5):
+    for i in range(10):
         prod = Producer(f"producer_{i}", products=sample(product_register, randint(1,len(product_register))))
         prod.start()
 
-    for i in range(15):
+    for i in range(20):
         cust = Customer(f"customer_{i}", 1)
         customers.append(cust)
         cust.start()
